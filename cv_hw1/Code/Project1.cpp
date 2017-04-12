@@ -286,9 +286,29 @@ void MainWindow::SeparableGaussianBlurImage(double** image, double sigma)
  * sigma: standard deviation for the Gaussian kernel
 */
 {
+    int radius = (int)(ceil(3 * sigma));
+    int size = 2 * radius + 1;
+    double s = 2 * sigma * sigma;
     // Add your code here
     // Blur horizontal
         // Horizontal Kernel
+    double *horizontalKernel = new double[size];
+    for(int i = -radius; i <= radius; i++){
+        double r = sqrt(i * i);
+        double val = exp(-(r * r) / s) / (M_PI * s);
+        horizontalKernel[i + radius] = val;
+    }
+    NormalizeKernel(horizontalKernel, size, 1);
+    Convolution(image, horizontalKernel, size, 1, false);
+
+    double *verticalKernel = new double[size];
+    for(int j = -radius; j <= radius; j++){
+        double r = sqrt(j * j);
+        double val = exp(-(r * r) / s) / (M_PI * s);
+        verticalKernel[j + radius] = val;
+    }
+    NormalizeKernel(verticalKernel, 1, size);
+    Convolution(image, verticalKernel, 1, size, false);
         // Normalize
         // Convolution
     // Blur vertical

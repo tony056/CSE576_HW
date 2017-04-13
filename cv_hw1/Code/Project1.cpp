@@ -2,7 +2,7 @@
 #include "math.h"
 #include "ui_mainwindow.h"
 #include <QtGui>
-
+#include <iostream>
 /***********************************************************************
   This is the only file you need to change for your assignment. The
   other files control the UI (in case you want to make changes.)
@@ -213,6 +213,10 @@ void MainWindow::Convolution(double** image, double *kernel, int kernelWidth, in
     int radius_w = kernelWidth / 2;
     int radius_h = kernelHeight / 2;
     qDebug("w: %d, h: %d", radius_w, radius_h);
+    double **newImage = new double* [imageWidth*imageHeight];
+    // Image = new double* [imageWidth*imageHeight];
+    for (int i = 0; i < imageWidth*imageHeight; i++)
+        newImage[i] = new double[3];
     for(int r = 0; r < imageHeight; r++){
         for(int c = 0; c < imageWidth; c++){
 
@@ -224,7 +228,6 @@ void MainWindow::Convolution(double** image, double *kernel, int kernelWidth, in
 
                     int pixel = (r + rd) * imageWidth + c + cd;
                     double weight = kernel[(rd + radius_h)*kernelWidth + cd + radius_w];
-
                     int currentR = ((r + rd < 0 || r + rd >= imageHeight) || (c + cd < 0 || c + cd >= imageWidth)) ? 0 : image[pixel][0];
                     int currentG = ((r + rd < 0 || r + rd >= imageHeight) || (c + cd < 0 || c + cd >= imageWidth)) ? 0 : image[pixel][1];
                     int currentB = ((r + rd < 0 || r + rd >= imageHeight) || (c + cd < 0 || c + cd >= imageWidth)) ? 0 : image[pixel][2];
@@ -235,9 +238,17 @@ void MainWindow::Convolution(double** image, double *kernel, int kernelWidth, in
                 }
             }
 
-            image[r * imageWidth + c][0] = rgb[0];
-            image[r * imageWidth + c][1] = rgb[1];
-            image[r * imageWidth + c][2] = rgb[2];
+            newImage[r * imageWidth + c][0] = rgb[0];
+            newImage[r * imageWidth + c][1] = rgb[1];
+            newImage[r * imageWidth + c][2] = rgb[2];
+        }
+    }
+    //refractor memory copy part
+    for(int r = 0; r < imageHeight; r++){
+        for(int c = 0; c < imageWidth; c++){
+            image[r * imageWidth + c][0] = newImage[r * imageWidth + c][0];
+            image[r * imageWidth + c][1] = newImage[r * imageWidth + c][1];
+            image[r * imageWidth + c][2] = newImage[r * imageWidth + c][2];
         }
     }
 }
@@ -327,6 +338,12 @@ void MainWindow::FirstDerivImage_x(double** image, double sigma)
 */
 {
     // Add your code here
+    double *kernel_x = new double[3];
+    kernel_x[0] = -1.0;
+    kernel_x[1] = 0.0;
+    kernel_x[2] = 1.0;
+    Convolution(image, kernel_x, 3, 1, true);
+    // GaussianBlurImage(image, sigma);
 }
 
 /********** TASK 4 (b) **********/
@@ -339,6 +356,12 @@ void MainWindow::FirstDerivImage_y(double** image, double sigma)
 */
 {
     // Add your code here
+    double *kernel_y = new double[3];
+    kernel_y[0] = -1;
+    kernel_y[1] = 0;
+    kernel_y[2] = 1;
+    Convolution(image, kernel_y, 1, 3, true);
+    GaussianBlurImage(image, sigma);
 }
 
 /********** TASK 4 (c) **********/
@@ -351,6 +374,19 @@ void MainWindow::SecondDerivImage(double** image, double sigma)
 */
 {
     // Add your code here
+    double *laplacianKernel= new double[9];
+    laplacianKernel[0] = 0.0;
+    laplacianKernel[1] = 1.0;
+    laplacianKernel[2] = 0.0;
+    laplacianKernel[3] = 1.0;
+    laplacianKernel[4] = -4.0;
+    laplacianKernel[5] = 1.0;
+    laplacianKernel[6] = 0.0;
+    laplacianKernel[7] = 1.0;
+    laplacianKernel[8] = 0.0;
+
+    Convolution(image, laplacianKernel, 3, 3, true);
+    GaussianBlurImage(image, sigma);
 }
 
 /**************************************************
@@ -365,7 +401,23 @@ void MainWindow::SharpenImage(double** image, double sigma, double alpha)
  * alpha: constant by which the second derivative image is to be multiplied to before subtracting it from the original image
 */
 {
+    double **copyImage = new double* [imageWidth * imageHeight];
+    for(int i = 0; i < imageWidth * imageHeight; i++){
+        copyImage[i] = new double[3];
+        copyImage[i][0] = image[i][0];
+        copyImage[i][1] = image[i][1];
+        copyImage[i][2] = image[i][2];
+    }
     // Add your code here
+    // copy an original image
+    // use one to 2nd derivative
+    SecondDerivImage(copyImage, sigma);
+    for(int i = 0; i < imageWidth * imageHeight; i++){
+        image[i][0] = image[i][0] - alpha * (copyImage[i][0] - 128.0);
+        image[i][1] = image[i][1] - alpha * (copyImage[i][1] - 128.0);
+        image[i][2] = image[i][2] - alpha * (copyImage[i][2] - 128.0);
+    }
+    // subtracting 2nd derivative from the original
 }
 
 /**************************************************

@@ -505,6 +505,37 @@ void MainWindow::BilinearInterpolation(double** image, double x, double y, doubl
 */
 {
     // Add your code here
+    int baseX = (int) x;
+    int baseY = (int) y;
+    int boundX = (int) ceil(x);
+    int boundY = (int) ceil(y);
+
+    double dX = boundX - baseX;
+    double dY = boundY - baseY;
+
+    double diffFromBaseX = x - baseX;
+    double diffFromBaseY = y - baseY;
+
+    double diffFromBoundX = boundX - x;
+    double diffFromBoundY = boundY - y;
+    if(x < 0 || y < 0){
+        qDebug("x, y: %f, %f", x, y);
+        qDebug("bases: %d, %d", baseX, baseY);
+        qDebug("bounds: %d, %d", boundX, boundY);
+    }
+
+
+    for(int i = 0; i < 3; i++){
+        double f11 = (baseX >= 0 && baseX < imageWidth && baseY >= 0 && baseY < imageHeight) ? image[baseY * imageWidth + baseX][i] : 0;
+        double f12 = (baseX >= 0 && baseX < imageWidth && boundY >= 0 && boundY < imageHeight) ? image[boundY * imageWidth + baseX][i] : 0;
+        double f21 = (boundX >= 0 && boundX < imageWidth && baseY >= 0 && baseY < imageHeight) ? image[baseY * imageWidth + boundX][i] : 0;
+        double f22 = (boundX >= 0 && boundX < imageWidth && boundY >= 0 && boundY < imageHeight) ? image[boundY * imageWidth + boundX][i] : 0;
+        rgb[i] = ( f11 * diffFromBoundX * diffFromBoundY +
+            f12 * diffFromBaseY * diffFromBaseX +
+            f21 * diffFromBoundX * diffFromBaseY +
+            f22 * diffFromBaseX * diffFromBaseY) /
+            (dX * dY);
+    }
 }
 
 /*******************************************************************************

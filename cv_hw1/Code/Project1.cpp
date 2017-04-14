@@ -600,6 +600,96 @@ void MainWindow::FindPeaksImage(double** image, double thres)
 */
 {
     // Add your code here
+    // mag Image
+    // calculate e1, e2 position & gradient value
+    // comparison
+    double **magImage = new double *[imageWidth * imageHeight];
+    for(int i = 0; i < imageWidth * imageHeight; i++){
+        magImage[i] = new double[3];
+        for(int j = 0; j < 3; j++){
+            magImage[i][j] = image[i][j];
+        }
+    }
+
+    double mag = 0;
+    double orien = 0;
+    double *sobel_x = new double[9];
+    double *sobel_y = new double[9];
+    sobel_x[0] = -1;
+    sobel_x[1] = 0;
+    sobel_x[2] = 1;
+    sobel_x[3] = -2;
+    sobel_x[4] = 0;
+    sobel_x[5] = 2;
+    sobel_x[6] = -1;
+    sobel_x[7] = 0;
+    sobel_x[8] = 1;
+
+    sobel_y[0] = 1;
+    sobel_y[1] = 2;
+    sobel_y[2] = 1;
+    sobel_y[3] = 0;
+    sobel_y[4] = 0;
+    sobel_y[5] = 0;
+    sobel_y[6] = -1;
+    sobel_y[7] = -2;
+    sobel_y[8] = -1;
+
+    double **gxImage = new double*[imageWidth * imageHeight];
+    double **gyImage = new double*[imageWidth * imageHeight];
+    for(int i = 0; i < imageWidth * imageHeight; i++){
+        gxImage[i] = new double[3];
+        gyImage[i] = new double[3];
+        for(int j = 0; j < 3; j++){
+            gxImage[i][j] = image[i][j];
+            gyImage[i][j] = image[i][j];
+        }
+    }
+
+    Convolution(gxImage, sobel_x, 3, 3, false);
+    Convolution(gyImage, sobel_y, 3, 3, false);
+
+    // Use the following 3 lines of code to set the image pixel values after computing magnitude and orientation
+    // Here 'mag' is the magnitude and 'orien' is the orientation angle in radians to be computed using atan2 function
+    // (sin(orien) + 1)/2 converts the sine value to the range [0,1]. Similarly for cosine.
+    for(int r = 0; r < imageHeight; r++){
+        for(int c = 0; c < imageWidth; c++){
+            double gx = gxImage[r * imageWidth + c][0];
+            double gy = gyImage[r * imageWidth + c][0];
+            double powX = pow(gx, 2.0);
+            double powY = pow(gy, 2.0);
+            mag = sqrt(powX + powY);
+            // orien = atan2(gy, gx);
+            magImage[r*imageWidth+c][0] = mag;
+            magImage[r*imageWidth+c][1] = mag;
+            magImage[r*imageWidth+c][2] = mag;
+        }
+    }
+    double theta = 135 * M_PI / 180.0;
+    for(int r = 0; r < imageHeight; r++){
+        for(int c = 0; c < imageWidth; c++){
+            double e1x = c + cos(theta);
+            double e1y = r + sin(theta);
+            double e2x = c - cos(theta);
+            double e2y = r - sin(theta);
+            double rgb_e1[3];
+            double rgb_e2[3];
+
+            BilinearInterpolation(magImage, e1x, e1y, rgb_e1);
+            BilinearInterpolation(magImage, e2x, e2y, rgb_e2);
+            double e = magImage[r * imageWidth + c][0];
+            if(e > thres && e >= rgb_e1[0] && e >= rgb_e2[0]){
+                image[r * imageWidth + c][0] = 255;
+                image[r * imageWidth + c][1] = 255;
+                image[r * imageWidth + c][2] = 255;
+            } else {
+                image[r * imageWidth + c][0] = 0;
+                image[r * imageWidth + c][1] = 0;
+                image[r * imageWidth + c][2] = 0;
+            }
+        }
+    }
+
 }
 
 /**************************************************

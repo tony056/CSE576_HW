@@ -505,10 +505,10 @@ void MainWindow::BilinearInterpolation(double** image, double x, double y, doubl
 */
 {
     // Add your code here
-    int baseX = (int) x;
-    int baseY = (int) y;
-    int boundX = (int) ceil(x);
-    int boundY = (int) ceil(y);
+    int baseX = floor(x);
+    int baseY = floor(y);
+    int boundX = baseX + 1;
+    int boundY = baseY + 1;
 
     double dX = boundX - baseX;
     double dY = boundY - baseY;
@@ -530,12 +530,17 @@ void MainWindow::BilinearInterpolation(double** image, double x, double y, doubl
         double f12 = (baseX >= 0 && baseX < imageWidth && boundY >= 0 && boundY < imageHeight) ? image[boundY * imageWidth + baseX][i] : 0;
         double f21 = (boundX >= 0 && boundX < imageWidth && baseY >= 0 && baseY < imageHeight) ? image[baseY * imageWidth + boundX][i] : 0;
         double f22 = (boundX >= 0 && boundX < imageWidth && boundY >= 0 && boundY < imageHeight) ? image[boundY * imageWidth + boundX][i] : 0;
-        rgb[i] = ( f11 * diffFromBoundX * diffFromBoundY +
-            f12 * diffFromBaseY * diffFromBaseX +
-            f21 * diffFromBoundX * diffFromBaseY +
-            f22 * diffFromBaseX * diffFromBaseY) /
-            (dX * dY);
+        double r1 = (f11 * diffFromBoundX + f21 * diffFromBaseX) / dX;
+        double r2 = (f12 * diffFromBoundX + f22 * diffFromBaseX) / dX;
+
+        rgb[i] = (r1 * diffFromBoundY + r2 * diffFromBaseY) / dY;
+        // // rgb[i] = ( f11 * diffFromBoundX * diffFromBoundY +
+        //     f12 * diffFromBaseY * diffFromBaseX +
+        //     f21 * diffFromBoundX * diffFromBaseY +
+        //     f22 * diffFromBaseX * diffFromBaseY) /
+        //     (dX * dY);
     }
+
 }
 
 /*******************************************************************************

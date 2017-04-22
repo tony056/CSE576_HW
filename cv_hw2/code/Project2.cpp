@@ -371,24 +371,25 @@ void MainWindow::GaussianBlurImage(double *image, int w, int h, double sigma)
 
 
 
-// void multiply(double *image1, double *image2, double *result, int width, int height)
-// {
-//
-//     for(int i = 0; i < width * height){
-//         result[i] = image1[i] * image2[i];
-//     }
-// }
+void multiply(double *image1, double *image2, double *result, int width, int height)
+{
 
-void ComputeHarrisResponse(double *ix, double *iy, double *result, int w, int h)
+    for(int i = 0; i < width * height; i++){
+        result[i] = image1[i] * image2[i];
+    }
+}
+
+void ComputeHarrisResponse(double *ix2, double *iy2, double *ixy, double *result, int w, int h)
 {
     for(int i = 0; i < w * h; i++){
-        double ix2 = ix[i] * ix[i];
-        double iy2 = iy[i] * iy[i];
-        double ixy = ix[i] * iy[i];
-        double iyx = iy[i] * ix[i];
-        double det = ix2 * iy2 - ixy * iyx;
-        double trace = ix2 + iy2;
+        // double ix2 = ix[i] * ix[i];
+        // double iy2 = iy[i] * iy[i];
+        // double ixy = ix[i] * iy[i];
+        // double iyx = iy[i] * ix[i];
+        double det = ix2[i] * iy2[i] - ixy[i] * ixy[i];
+        double trace = ix2[i] + iy2[i];
         result[i] = det / trace; //no idea
+        // qDebug("result %d = %f %f %f", i, result[i], det, trace);
     }
 }
 
@@ -423,6 +424,9 @@ void MainWindow::HarrisCornerDetector(QImage image, double sigma, double thres, 
     // Write your Harris corner detection code here.
     double *ix = new double[w * h];
     double *iy = new double[w * h];
+    double *iy2 = new double[w * h];
+    double *ix2 = new double[w * h];
+    double *ixy = new double[w * h];
     double *result = new double[w * h];
     for(int i = 0; i < w * h; i++){
         ix[i] = buffer[i];
@@ -431,20 +435,30 @@ void MainWindow::HarrisCornerDetector(QImage image, double sigma, double thres, 
 
     Sobel(ix, 0, w, h);
     Sobel(iy, 1, w, h);
+    multiply(ix, ix, ix2, w, h);
+    multiply(iy, iy, iy2, w, h);
+    multiply(ix, iy, ixy, w, h);
+    GaussianBlurImage(ix2, w, h, sigma);
+    GaussianBlurImage(iy2, w, h, sigma);
+    GaussianBlurImage(ixy, w, h, sigma);
 
-    ComputeHarrisResponse(ix, iy, result, w, h);
-    int count = 0;
+    ComputeHarrisResponse(ix2, iy2, ixy, result, w, h);
+    // int count = 0;
     for(int i = 0; i < w * h; i++){
+        // qDebug("result %d = %f", i, result[i]);
         if(result[i] > thres)
-            count++;
+            numCornerPts++;
     }
-    *cornerPts = new CIntPt[count];
+    qDebug("count: %d", numCornerPts);
+    *cornerPts = new CIntPt[numCornerPts];
     int index = 0;
     for(int r = 0; r < h; r++){
         for(int c = 0; c < w; c++){
-            if(result[r * w + c] > thres){
+            if(result[r * w + c] > thres && index < numCornerPts){
                 (*cornerPts)[index].m_X = c;
                 (*cornerPts)[index].m_Y = r;
+                // (*cornerPts)[index].
+                index++;
             }
         }
     }
@@ -455,11 +469,19 @@ void MainWindow::HarrisCornerDetector(QImage image, double sigma, double thres, 
     // The position of the corner point is (m_X, m_Y)
     // The descriptor of the corner point is stored in m_Desc
     // The length of the descriptor is m_DescSize, if m_DescSize = 0, then it is not valid.
-
+    for(int i = 0; i < numCornerPts; i++){
+        qDebug("(%f, %f)", (*cornerPts)[i].m_X, (*cornerPts)[i].m_Y);
+    }
     // Once you are done finding the corner points, display them on the image
     DrawCornerPoints(*cornerPts, numCornerPts, imageDisplay);
 
     delete [] buffer;
+    delete [] ix;
+    delete [] iy;
+    delete [] ix2;
+    delete [] iy2;
+    delete [] ixy;
+    delete [] result;
 }
 
 

@@ -267,6 +267,8 @@ void NormalizeKernel(double *kernel, int kernelWidth, int kernelHeight)
         kernel[i] /= denom;
 }
 
+
+
 void Convolution(double* image, double *kernel, int kernelWidth, int kernelHeight, bool add, int width, int height)
 {
     int radius_w = kernelWidth / 2;
@@ -312,6 +314,36 @@ void Convolution(double* image, double *kernel, int kernelWidth, int kernelHeigh
     }
 }
 
+void Sobel(double *image, int direction, int w, int h)
+{
+    double *sobel_x = new double[9];
+    double *sobel_y = new double[9];
+    sobel_x[0] = -1;
+    sobel_x[1] = 0;
+    sobel_x[2] = 1;
+    sobel_x[3] = -2;
+    sobel_x[4] = 0;
+    sobel_x[5] = 2;
+    sobel_x[6] = -1;
+    sobel_x[7] = 0;
+    sobel_x[8] = 1;
+
+    sobel_y[0] = 1;
+    sobel_y[1] = 2;
+    sobel_y[2] = 1;
+    sobel_y[3] = 0;
+    sobel_y[4] = 0;
+    sobel_y[5] = 0;
+    sobel_y[6] = -1;
+    sobel_y[7] = -2;
+    sobel_y[8] = -1;
+
+    if(direction == 1)
+        Convolution(image, sobel_y, 3, 3, false, w, h);
+    else if(direction == 0)
+        Convolution(image, sobel_x, 3, 3, false, w, h);
+}
+
 void MainWindow::GaussianBlurImage(double *image, int w, int h, double sigma)
 {
     // Add your code here
@@ -337,6 +369,28 @@ void MainWindow::GaussianBlurImage(double *image, int w, int h, double sigma)
     //Convolution
 }
 
+
+
+// void multiply(double *image1, double *image2, double *result, int width, int height)
+// {
+//
+//     for(int i = 0; i < width * height){
+//         result[i] = image1[i] * image2[i];
+//     }
+// }
+
+void ComputeHarrisResponse(double *ix, double *iy, double *result, int w, int h)
+{
+    for(int i = 0; i < w * h; i++){
+        double ix2 = ix[i] * ix[i];
+        double iy2 = iy[i] * iy[i];
+        double ixy = ix[i] * iy[i];
+        double iyx = iy[i] * ix[i];
+        double det = ix2 * iy2 - ixy * iyx;
+        double trace = ix2 + iy2;
+        result[i] = det / trace; //no idea
+    }
+}
 
 /*******************************************************************************
 Detect Harris corners.
@@ -367,7 +421,33 @@ void MainWindow::HarrisCornerDetector(QImage image, double sigma, double thres, 
         }
 
     // Write your Harris corner detection code here.
+    double *ix = new double[w * h];
+    double *iy = new double[w * h];
+    double *result = new double[w * h];
+    for(int i = 0; i < w * h; i++){
+        ix[i] = buffer[i];
+        iy[i] = buffer[i];
+    }
 
+    Sobel(ix, 0, w, h);
+    Sobel(iy, 1, w, h);
+
+    ComputeHarrisResponse(ix, iy, result, w, h);
+    int count = 0;
+    for(int i = 0; i < w * h; i++){
+        if(result[i] > thres)
+            count++;
+    }
+    *cornerPts = new CIntPt[count];
+    int index = 0;
+    for(int r = 0; r < h; r++){
+        for(int c = 0; c < w; c++){
+            if(result[r * w + c] > thres){
+                (*cornerPts)[index].m_X = c;
+                (*cornerPts)[index].m_Y = r;
+            }
+        }
+    }
     // Once you uknow the number of corner points allocate an array as follows:
     // *cornerPts = new CIntPt [numCornerPts];
     // Access the values using: (*cornerPts)[i].m_X = 5.0;

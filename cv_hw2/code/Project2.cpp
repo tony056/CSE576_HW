@@ -3,6 +3,7 @@
 #include "ui_mainwindow.h"
 #include <QtGui>
 #include "Matrix.h"
+#include <float.h>
 
 /*******************************************************************************
     The following are helper routines with code already written.
@@ -523,8 +524,34 @@ void MainWindow::MatchCornerPoints(QImage image1, CIntPt *cornerPts1, int numCor
     ComputeDescriptors(image1, cornerPts1, numCornerPts1);
     ComputeDescriptors(image2, cornerPts2, numCornerPts2);
 
+    for(int i = 0; i < numCornerPts1; i++){
+        if(cornerPts1[i].m_DescSize > 0)
+            numMatches++;
+    }
+    *matches = new CMatches [numMatches];
+    int index = 0;
     // Add your code here for finding the best matches for each point.
-
+    for(int i = 0; i < numCornerPts1; i++){
+        if(cornerPts1[i].m_DescSize == 0)
+            continue;
+        double min_dist = DBL_MAX;
+        for(int j = 0; j < numCornerPts2; j++){
+            if(cornerPts2[j].m_DescSize == 0)
+                continue;
+            double dist = 0.0;
+            for(int k = 0; k < cornerPts1[i].m_DescSize; k++){
+                dist += fabs(cornerPts1[i].m_Desc[k] - cornerPts2[j].m_Desc[k]);
+            }
+            if(min_dist > dist){
+                min_dist = dist;
+                (*matches)[index].m_X1 = cornerPts1[i].m_X;
+                (*matches)[index].m_Y1 = cornerPts1[i].m_Y;
+                (*matches)[index].m_X2 = cornerPts2[j].m_X;
+                (*matches)[index].m_Y2 = cornerPts2[j].m_Y;
+            }
+        }
+        index++;
+    }
     // Once you uknow the number of matches allocate an array as follows:
     // *matches = new CMatches [numMatches];
     //

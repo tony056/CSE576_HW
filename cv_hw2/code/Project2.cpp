@@ -571,6 +571,8 @@ Project a point (x1, y1) using the homography transformation h
 void MainWindow::Project(double x1, double y1, double &x2, double &y2, double h[3][3])
 {
     // Add your code here.
+    x2 = (h[0][0] * x1 + h[0][1] * y1 + h[0][2]) / (h[2][0] * x1 + h[2][1] * y1 + h[2][2]);
+    y2 = (h[1][0] * x1 + h[1][1] * y1 + h[1][2]) / (h[2][0] * x1 + h[2][1] * y1 + h[2][2]);
 }
 
 /*******************************************************************************
@@ -585,8 +587,16 @@ Count the number of inliers given a homography.  This is a helper function for R
 int MainWindow::ComputeInlierCount(double h[3][3], CMatches *matches, int numMatches, double inlierThreshold)
 {
     // Add your code here.
-
-    return 0;
+    int count = 0;
+    for(int i = 0; i < numMatches; i++){
+        double xp = matches[i].m_X1;
+        double yp = matches[i].m_Y1;
+        Project(matches[i].m_X1, matches[i].m_Y1, xp, yp, h);
+        double dist = fabs(xp - matches[i].m_X2) + fabs(yp - matches[i].m_Y2);
+        if(dist < inlierThreshold)
+            count++;
+    }
+    return count;
 }
 
 
@@ -605,10 +615,53 @@ void MainWindow::RANSAC(CMatches *matches, int numMatches, int numIterations, do
                         double hom[3][3], double homInv[3][3], QImage &image1Display, QImage &image2Display)
 {
     // Add your code here.
-
+    int maxRandomNum = 4;
+    int *indexes = new int[maxRandomNum];
+    int maxInlierCount = 0;
+    for(int i = 0; i < numIterations; i++){
+        int randomNum = 0;
+        CMatches *selectedMatches = new CMatches[maxRandomNum];
+        while(randomNum < maxRandomNum){
+            int index = random() % numMatches;
+            bool isSame = false;
+            for(int j = 0; j < randomNum; j++){
+                if(indexes[j] == index)
+                    isSame = true;
+            }
+            if(!isSame){
+                indexes[randomNum] = index;
+                selectedMatches[randomNum] = matches[index];
+                randomNum++;
+            }
+        }
+        double h[3][3];
+        // for(int k = 0; k < 3; k++)
+        //     h[k] = new double[3];
+        ComputeHomography(selectedMatches, maxRandomNum, h, true);
+        int count = ComputeInlierCount(h, matches, numMatches, inlierThreshold);
+        if(count > maxInlierCount){
+            maxInlierCount = count;
+            for(int k = 0; k < 3; k++){
+                for(int l = 0; l < 3; l++)
+                    hom[k][l] = h[k][l];
+            }
+        }
+    }
+    int index = 0;
+    CMatches *inliers = new CMatches[maxInlierCount];
+    for(int i = 0; i < numMatches; i++){
+        double xp = matches[i].m_X1;
+        double yp = matches[i].m_Y1;
+        Project(matches[i].m_X1, matches[i].m_Y1, xp, yp, hom);
+        double dist = fabs(xp - matches[i].m_X2) + fabs(yp - matches[i].m_Y2);
+        if(dist < inlierThreshold && index < maxInlierCount)
+            inliers[index++] = matches[i];
+    }
+    ComputeHomography(inliers, maxInlierCount, hom, true);
+    ComputeHomography(inliers, maxInlierCount, homInv, false);
     // After you're done computing the inliers, display the corresponding matches.
-    //DrawMatches(inliers, numInliers, image1Display, image2Display);
-
+    int numInliers = ComputeInlierCount(hom, inliers, maxInlierCount, inlierThreshold);
+    DrawMatches(inliers, numInliers, image1Display, image2Display);
 }
 
 /*******************************************************************************

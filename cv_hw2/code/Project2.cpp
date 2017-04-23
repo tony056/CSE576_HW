@@ -393,6 +393,22 @@ void ComputeHarrisResponse(double *ix2, double *iy2, double *ixy, double *result
     }
 }
 
+bool IsLocalMaximum(double *imageOfHR, int r, int c, int w, int h)
+{
+    int rd = 1;
+    double current = imageOfHR[r * w + c];
+    for(int i = -rd + r; i <= rd + r; i++){
+        for(int j = -rd + c; j <= rd + c; j++){
+            if(i < 0 || i >= h || j < 0 || j >= w)
+                continue;
+            if(imageOfHR[i * w + j] > current){
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 /*******************************************************************************
 Detect Harris corners.
     image - input image
@@ -454,10 +470,9 @@ void MainWindow::HarrisCornerDetector(QImage image, double sigma, double thres, 
     int index = 0;
     for(int r = 0; r < h; r++){
         for(int c = 0; c < w; c++){
-            if(result[r * w + c] > thres && index < numCornerPts){
+            if(result[r * w + c] > thres && IsLocalMaximum(result, r, c, w, h) && index < numCornerPts){
                 (*cornerPts)[index].m_X = c;
                 (*cornerPts)[index].m_Y = r;
-                // (*cornerPts)[index].
                 index++;
             }
         }
@@ -469,9 +484,7 @@ void MainWindow::HarrisCornerDetector(QImage image, double sigma, double thres, 
     // The position of the corner point is (m_X, m_Y)
     // The descriptor of the corner point is stored in m_Desc
     // The length of the descriptor is m_DescSize, if m_DescSize = 0, then it is not valid.
-    for(int i = 0; i < numCornerPts; i++){
-        qDebug("(%f, %f)", (*cornerPts)[i].m_X, (*cornerPts)[i].m_Y);
-    }
+
     // Once you are done finding the corner points, display them on the image
     DrawCornerPoints(*cornerPts, numCornerPts, imageDisplay);
 

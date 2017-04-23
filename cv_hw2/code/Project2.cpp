@@ -675,7 +675,69 @@ Bilinearly interpolate image (helper function for Stitch)
 bool MainWindow::BilinearInterpolation(QImage *image, double x, double y, double rgb[3])
 {
     // Add your code here.
+    int w = image->width();
+    int h = image->height();
+    if(x < 0 || y < 0 || x > w - 1 || y > h - 1)
+        return false;
+    int baseX = floor(x);
+    int baseY = floor(y);
+    int boundX = (baseX + 1 < w) ? baseX + 1 : baseX;
+    int boundY = (baseY + 1 < h) ? baseY + 1 : baseY;
 
+    double dX = boundX - baseX;
+    double dY = boundY - baseY;
+
+    double diffFromBaseX = x - baseX;
+    double diffFromBaseY = y - baseY;
+
+    double diffFromBoundX = boundX - x;
+    double diffFromBoundY = boundY - y;
+
+    // QRgb pixel = image.pixel(c, r);
+
+    // buffer[r*w + c] = (double) qGreen(pixel);
+    // imageDisplay.setPixel(c, r + rd, qRgb(255, 0, 0));
+
+    // for(int i = 0; i < 3; i++){
+    QRgb f11Pixel = image->pixel(baseX, baseY);
+    double f11RGB[3] = {
+        (double) qRed(f11Pixel),
+        (double) qGreen(f11Pixel),
+        (double) qBlue(f11Pixel)
+    };
+    // double f12RGB[3];
+    QRgb f12Pixel = image->pixel(baseX, boundY);
+    double f12RGB[3] = {
+        (double) qRed(f12Pixel),
+        (double) qGreen(f12Pixel),
+        (double) qBlue(f12Pixel)
+    };
+    // double f21RGB[3];
+    QRgb f21Pixel = image->pixel(boundX, baseY);
+    double f21RGB[3] = {
+        (double) qRed(f21Pixel),
+        (double) qGreen(f21Pixel),
+        (double) qBlue(f21Pixel)
+    };
+
+    // double f22RGB[3];
+    QRgb f22Pixel = image->pixel(boundX, boundY);
+    double f22RGB[3] = {
+        (double) qRed(f22Pixel),
+        (double) qGreen(f22Pixel),
+        (double) qBlue(f22Pixel)
+    };
+
+    // double f11 = (baseX >= 0 && baseX < imageWidth && baseY >= 0 && baseY < imageHeight) ? image[baseY * imageWidth + baseX][i] : 0;
+    // double f12 = (baseX >= 0 && baseX < imageWidth && boundY >= 0 && boundY < imageHeight) ? image[boundY * imageWidth + baseX][i] : 0;
+    // double f21 = (boundX >= 0 && boundX < imageWidth && baseY >= 0 && baseY < imageHeight) ? image[baseY * imageWidth + boundX][i] : 0;
+    // double f22 = (boundX >= 0 && boundX < imageWidth && boundY >= 0 && boundY < imageHeight) ? image[boundY * imageWidth + boundX][i] : 0;
+
+    for(int i = 0; i < 3; i++){
+        double r1 = (f11RGB[i] * diffFromBoundX + f21RGB[i] * diffFromBaseX) / (dX + 0.00001);
+        double r2 = (f12RGB[i] * diffFromBoundX + f22RGB[i] * diffFromBaseX) / (dX + 0.00001);
+        rgb[i] = (r1 * diffFromBoundY + r2 * diffFromBaseY) / (dY + 0.00001);
+    }
     return true;
 }
 
@@ -693,11 +755,73 @@ void MainWindow::Stitch(QImage image1, QImage image2, double hom[3][3], double h
     // Width and height of stitchedImage
     int ws = 0;
     int hs = 0;
-
+    double ig2w = image2.width() - 1.0;
+    double ig2h = image2.height() - 1.0;
+    double topLeft[2];
+    double bottomLeft[2];
+    double topRight[2];
+    double bottomRight[2];
+    double projectedCorners[8];
+    Project(0, 0, projectedCorners[0], projectedCorners[1], homInv);
+    Project(0, ig2h, projectedCorners[2], projectedCorners[3], homInv);
+    Project(ig2w, 0, projectedCorners[4], projectedCorners[5], homInv);
+    Project(ig2w, ig2h, projectedCorners[6], projectedCorners[7], homInv);
     // Add your code to compute ws and hs here.
-
+    // qDebug("topLeft: %f %f", topLeft[0], topLeft[1]);
+    // qDebug("topRight: %f %f", topRight[0], topRight[1]);
+    // qDebug("botLeft: %f %f", bottomLeft[0], bottomLeft[1]);
+    // qDebug("botRight: %f %f", bottomRight[0], bottomRight[1]);
+    // ws = floor(bottomRight[0] - topLeft[0]);
+    // hs = floor(bottomRight[1] - topLeft[1]);
+    double boundX = image1.width();
+    double boundY = image1.height();
+    double baseX = 0.0;
+    double baseY = 0.0;
+    for(int i = 0; i < 8; i+=2){
+        if(projectedCorners[i] > boundX)
+            boundX = projectedCorners[i];
+        else if(projectedCorners[i] < baseX)
+            baseX = projectedCorners[i];
+        if(projectedCorners[i + 1] > boundY)
+            boundY = projectedCorners[i + 1];
+        else if(projectedCorners[i + 1] < baseY)
+            baseY = projectedCorners[i + 1];
+    }
+    ws = floor(boundX - baseX);
+    hs = floor(boundY - baseY);
+    qDebug("x: %f, %f", boundX, baseX);
+    qDebug("y: %f, %f", boundY, baseY);
+    qDebug("image1: %d %d", image1.width(), image1.height());
+    qDebug("image2: %d %d", image2.width(), image2.height());
+    qDebug("stitched: %d %d",ws, hs);
     stitchedImage = QImage(ws, hs, QImage::Format_RGB32);
     stitchedImage.fill(qRgb(0,0,0));
-
+    int dXFromLeft = 0 - baseX;
+    int dYFromTop = 0 - baseY;
+    qDebug("dxy %d %d", dXFromLeft, dYFromTop);
     // Add you code to warp image1 and image2 to stitchedImage here.
+    for(int r = 0; r < image1.height(); r++){
+        for(int c = 0; c < image1.width(); c++){
+            double qr = qRed(image1.pixel(c, r));
+            double qg = qGreen(image1.pixel(c, r));
+            double qb = qBlue(image1.pixel(c, r));
+            stitchedImage.setPixel(c + dXFromLeft, r + dYFromTop, qRgb(qr, qg, qb));
+        }
+    }
+
+    for(int r = 0; r < hs; r++){
+        for(int c = 0; c < ws; c++){
+            double projectCoord[2];
+            Project(c - dXFromLeft, r - dYFromTop, projectCoord[0], projectCoord[1], hom);
+            double rgb[3] = {0.0, 0.0, 0.0};
+            if(BilinearInterpolation(&image2, projectCoord[0], projectCoord[1], rgb)){
+                // rgb[0] += (double) qRed(stitchedImage.pixel(c, r));
+                // rgb[1] += (double) qGreen(stitchedImage.pixel(c, r));
+                // rgb[2] += (double) qBlue(stitchedImage.pixel(c, r));
+                stitchedImage.setPixel(c, r, qRgb(rgb[0], rgb[1], rgb[2]));
+            }
+        }
+    }
+
+
 }
